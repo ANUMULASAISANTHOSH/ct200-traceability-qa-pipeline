@@ -7,6 +7,7 @@ from src.app.application.interfaces.document_repository import IDocumentReposito
 from src.app.infrastructure.db.models import (
     DocumentORM,
     DocumentVersionORM,
+    GenerationIndexORM,
     LogicalNodeORM,
     NodeVersionORM,
     SelectionItemORM,
@@ -141,5 +142,24 @@ class SQLAlchemyDocumentRepository(IDocumentRepository):
 
     def get_selection_by_id(self, selection_id: str) -> Optional[SelectionORM]:
         stmt = select(SelectionORM).where(SelectionORM.id == selection_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+    def save_generation_index(self, record: GenerationIndexORM) -> GenerationIndexORM:
+        self.session.add(record)
+        self.session.commit()
+        self.session.refresh(record)
+        return record
+
+    def get_generation_index(self, generation_id: str) -> Optional[GenerationIndexORM]:
+        stmt = select(GenerationIndexORM).where(GenerationIndexORM.id == generation_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+    def get_generation_by_idempotency_key(
+        self, selection_id: str, idempotency_key: str
+    ) -> Optional[GenerationIndexORM]:
+        stmt = select(GenerationIndexORM).where(
+            GenerationIndexORM.selection_id == selection_id,
+            GenerationIndexORM.idempotency_key == idempotency_key,
+        )
         return self.session.execute(stmt).scalar_one_or_none()
 

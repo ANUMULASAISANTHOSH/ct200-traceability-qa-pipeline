@@ -19,6 +19,12 @@ from src.app.application.use_cases.manage_selections import (
     CreateSelectionUseCase,
     GetSelectionUseCase,
 )
+from src.app.application.use_cases.generate_qa import (
+    GenerateQAUseCase,
+)
+from src.app.application.use_cases.get_generation import (
+    GetGenerationUseCase,
+)
 
 __all__ = [
     "IngestDocumentUseCase",
@@ -28,6 +34,8 @@ __all__ = [
     "SearchNodesUseCase",
     "CreateSelectionUseCase",
     "GetSelectionUseCase",
+    "GenerateQAUseCase",
+    "GetGenerationUseCase",
     "format_node_text_for_diff",
     "generate_text_diff",
 ]

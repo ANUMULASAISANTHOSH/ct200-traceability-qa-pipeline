@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from src.app.infrastructure.db.models import (
     DocumentORM,
     DocumentVersionORM,
+    GenerationIndexORM,
     LogicalNodeORM,
     NodeVersionORM,
     SelectionItemORM,
@@ -101,5 +102,22 @@ class IDocumentRepository(ABC):
     @abstractmethod
     def get_selection_by_id(self, selection_id: str) -> Optional[SelectionORM]:
         """Retrieve a selection by persistent ID."""
+        pass
+
+    @abstractmethod
+    def save_generation_index(self, record: GenerationIndexORM) -> GenerationIndexORM:
+        """Atomically persist a generation index record."""
+        pass
+
+    @abstractmethod
+    def get_generation_index(self, generation_id: str) -> Optional[GenerationIndexORM]:
+        """Retrieve a generation index record by generation ID."""
+        pass
+
+    @abstractmethod
+    def get_generation_by_idempotency_key(
+        self, selection_id: str, idempotency_key: str
+    ) -> Optional[GenerationIndexORM]:
+        """Retrieve a generation index record by selection ID and idempotency key."""
         pass
 

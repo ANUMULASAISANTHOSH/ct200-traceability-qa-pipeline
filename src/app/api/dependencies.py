@@ -11,6 +11,8 @@ from src.app.application.use_cases.manage_selections import (
     CreateSelectionUseCase,
     GetSelectionUseCase,
 )
+from src.app.application.use_cases.generate_qa import GenerateQAUseCase
+from src.app.application.use_cases.get_generation import GetGenerationUseCase
 from src.app.application.use_cases.search_nodes import SearchNodesUseCase
 
 from src.app.config import Settings, get_settings
@@ -18,6 +20,8 @@ from src.app.infrastructure.db.repositories.document_repository import (
     SQLAlchemyDocumentRepository,
 )
 from src.app.infrastructure.db.session import get_engine, get_session_factory, init_db
+from src.app.infrastructure.llm.client import LLMClient, get_llm_client
+from src.app.infrastructure.storage.json_store import JSONDocumentStore
 
 
 @lru_cache()
@@ -43,6 +47,20 @@ def get_repository(
 ) -> SQLAlchemyDocumentRepository:
     """Provide a document repository adapter."""
     return SQLAlchemyDocumentRepository(session)
+
+
+def get_json_document_store(
+    settings: Settings = Depends(get_settings),
+) -> JSONDocumentStore:
+    """Provide the append-only JSON document store."""
+    return JSONDocumentStore(base_path=settings.json_store_path)
+
+
+def get_llm_client_dependency(
+    settings: Settings = Depends(get_settings),
+) -> LLMClient:
+    """Provide configured LLM client instance."""
+    return get_llm_client(settings)
 
 
 def get_browse_use_case(
@@ -78,4 +96,21 @@ def get_get_selection_use_case(
 ) -> GetSelectionUseCase:
     """Provide the get selection use case."""
     return GetSelectionUseCase(repo)
+
+
+def get_generate_qa_use_case(
+    repo: SQLAlchemyDocumentRepository = Depends(get_repository),
+    store: JSONDocumentStore = Depends(get_json_document_store),
+    client: LLMClient = Depends(get_llm_client_dependency),
+) -> GenerateQAUseCase:
+    """Provide the QA generation use case."""
+    return GenerateQAUseCase(repository=repo, json_store=store, llm_client=client)
+
+
+def get_get_generation_use_case(
+    repo: SQLAlchemyDocumentRepository = Depends(get_repository),
+    store: JSONDocumentStore = Depends(get_json_document_store),
+) -> GetGenerationUseCase:
+    """Provide the get generation use case."""
+    return GetGenerationUseCase(repository=repo, json_store=store)
 

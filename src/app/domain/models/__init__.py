@@ -15,6 +15,14 @@ from src.app.domain.models.diff import (
     NodeDiffResult,
     DocumentDiffReport,
 )
+from src.app.domain.models.qa import (
+    GenerationDocument,
+    SourceSnapshot,
+    TestCase,
+    TestStep,
+    TestSuiteOutput,
+    ValidationAttempt,
+)
 
 __all__ = [
     "DocumentDraft",
@@ -28,5 +36,11 @@ __all__ = [
     "DiffStatus",
     "NodeDiffResult",
     "DocumentDiffReport",
+    "GenerationDocument",
+    "SourceSnapshot",
+    "TestCase",
+    "TestStep",
+    "TestSuiteOutput",
+    "ValidationAttempt",
 ]
 

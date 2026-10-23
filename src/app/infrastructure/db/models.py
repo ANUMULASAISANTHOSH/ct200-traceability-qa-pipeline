@@ -281,3 +281,37 @@ class SelectionItemORM(Base):
     selection = relationship("SelectionORM", back_populates="items")
     node_version = relationship("NodeVersionORM")
 
+
+class GenerationIndexORM(Base):
+    """SQLite index record pointing to the append-only JSON generation document."""
+    __tablename__ = "generation_index"
+
+    id = Column(String(64), primary_key=True, default=lambda: generate_id("gen"))
+    selection_id = Column(
+        String(64),
+        ForeignKey("selections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    idempotency_key = Column(String(128), nullable=False, index=True)
+    status = Column(String(32), nullable=False, index=True)  # "SUCCESS", "FAILED"
+    json_path = Column(String(512), nullable=False)
+    source_node_version_ids = Column(JSON, nullable=False, default=list)
+    test_case_count = Column(Integer, nullable=False, default=0)
+    prompt_version = Column(String(32), nullable=False)
+    schema_version = Column(String(32), nullable=False)
+    provider = Column(String(64), nullable=False)
+    model = Column(String(64), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("selection_id", "idempotency_key", name="uq_gen_selection_idempotency"),
+    )
+
+    # Relationships
+    selection = relationship("SelectionORM")
+

@@ -129,71 +129,101 @@ The parser must handle the following verified characteristics from `ct200_manual
 
 ## 4. Version-Pinned Selections & Storage Justification
 
-### 4.1 Version-Pinned Node Selections
+### 4.1 Version-Pinned Node Selections & Section Expansion
 When a user or automated test engineer selects nodes for QA/test case generation:
 - Selections are stored as an array of exact `node_version_id` references along with snapshot content hashes.
 - Pinning ensures that even when a newer manual is uploaded, previously generated test suites remain tied to the exact text and specifications from which they were derived.
+
+#### Section Expansion Behavior
+When reconstructing the generation context from an existing selection:
+- **Hierarchical Expansion**: If a selected node is a `section`, all of its descendant nodes (child subsections, paragraphs, tables, lists) are recursively traversed and included.
+- **Deduplication**: If the selection also directly includes a descendant node (or multiple overlapping sections), each node is included **only once**.
+- **Deterministic Ordering**: Context nodes are deterministically ordered according to their physical `source_order` in the document version.
+- **Audit Snapshot**: Every included node is converted into an immutable `SourceSnapshot` capturing its `node_version_id`, `logical_node_id`, `node_type`, `heading`, `section_number`, `page_start`, `page_end`, `text`, `structured_data`, and cryptographic `content_hash`.
 
 ### 4.2 Dual-Store Architecture: Relational SQLite + Append-Only Document Store
 
 | Store | Technology | Responsibilities | Justification |
 | :--- | :--- | :--- | :--- |
-| **Relational Store** | SQLite 3 via SQLAlchemy 2.0 | - Document metadata & version registry<br>- Node hierarchy, paths, & `logical_node_id` mappings<br>- Pinned selection headers & generation index<br>- Fast foreign-key lookups & uniqueness constraints | ACID transactions, zero operational overhead, fast relational traversals for tree structures and search indices. |
+| **Relational Store** | SQLite 3 via SQLAlchemy 2.0 | - Document metadata & version registry<br>- Node hierarchy, paths, & `logical_node_id` mappings<br>- Pinned selection headers & generation index (`generation_index`)<br>- Fast foreign-key lookups & uniqueness constraints | ACID transactions, zero operational overhead, fast relational traversals for tree structures and search indices. |
 | **Document Store** | Append-Only JSON Files (MongoDB-compatible BSON/JSON schema) | - Raw LLM prompt inputs & hyperparameter snapshots<br>- Generated test case suites (nested steps, assertions, reasoning)<br>- Validation run traces, error logs, & schema payloads | LLM outputs are semi-structured, deeply nested JSON documents with variable schemas across models and prompt templates. Append-only design guarantees auditability and zero risk of schema migration breaking historical generations. Fully compatible with MongoDB for horizontal scaling. |
+
+#### Atomic Write & Recovery Behavior
+To guarantee system consistency across dual stores without complex distributed transactions:
+1. **Atomic Write Pipeline**:
+   - The JSON document is serialized and written to a temporary file (`.tmp_<gen_id>_<uuid>.tmp`) in the configured `json_store_path`.
+   - The file is flushed to physical media using `os.fsync`.
+   - `os.replace` atomically renames the temporary file to its final destination (`<generation_id>.json`).
+   - The SQLite index record (`GenerationIndexORM`) is committed after the JSON document is safely flushed to disk.
+2. **Crash & Recovery Semantics**:
+   - *Failure during file write*: The incomplete temporary file is discarded; no index entry exists; client receives an error.
+   - *Failure after file write but before SQLite commit*: The immutable JSON document remains safely on disk. A startup reconciliation routine or recovery tool scans `json_store_path` for any `{generation_id}.json` absent from `generation_index` and reconstructs the SQLite index record.
+   - *Retrieval*: Querying `GET /api/v1/generations/{generation_id}` uses the SQLite index to locate the canonical file path directly, avoiding filesystem directory scans.
 
 ---
 
 ## 5. QA / Test Case Generation, Validation & Idempotency
 
-### 5.1 Generation Specifications
+### 5.1 Generation Specifications & Prompt Engineering
 The LLM synthesis use-case accepts:
-- Pinned `node_version_ids`.
-- Generation parameters (model, temperature, target test suite scope).
-- Idempotency key (computed from hash of inputs or supplied by client).
+- Selection ID pointing to a version-pinned selection.
+- Mandatory `Idempotency-Key` header.
+- Pluggable provider adapter (`MockLLMClient` by default, or `OpenAILLMClient` when credentials are configured).
 
-### 5.2 Strict Output Validation
-The generation pipeline enforces a strict schema requiring **3 to 5 complete, executable test cases**:
-- **Test Case Schema**:
-  - `id`: String identifier (e.g., `TC-001`).
-  - `title`: Concise descriptive summary.
-  - `node_references`: Array of referenced `node_version_id`s.
-  - `preconditions`: List of required setup conditions.
-  - `steps`: Ordered list of `{"step_number": int, "action": str, "expected_outcome": str}`.
-  - `assertions`: List of verifiable pass/fail assertions.
-  - `safety_critical`: Boolean indicating if safety or alarm rules are involved.
+**Prompt Versioning and Quoted Data Isolation**:
+- Uses versioned prompts (`PROMPT_VERSION = "v1.0"`, `SCHEMA_VERSION = "v1.0"`).
+- Quoted Source Isolation: Manual specifications are presented as raw, quoted source technical data, never as model instructions.
+- Boundary Constraints: The prompt instructs the model to derive test cases solely from the quoted specifications, not to invent device behavior or claim clinical efficacy/validation.
 
-### 5.3 Error Handling & Retry Policy
+### 5.2 Strict Output Validation Schema
+The generation pipeline enforces strict Pydantic schemas (`TestSuiteOutput`, `TestCase`, `TestStep`) with `extra="forbid"`:
+- **Quantity Boundary**: Requires **3 to 5 complete, executable test cases**.
+- **Test Case Structure**:
+  - `id`: Non-empty string identifier (e.g., `TC-001`).
+  - `title`: Concise descriptive summary (non-blank).
+  - `preconditions`: Non-empty list of setup prerequisites (no blank strings).
+  - `steps`: Ordered list of `TestStep` (`step_number >= 1`, non-empty `action`, non-empty `expected_result`).
+  - `node_references`: Non-empty list of source node-version IDs. Every reference **must exist within the generation context snapshots** (`valid_node_ids`). Unknown or out-of-context references trigger schema errors.
+  - `safety_critical`: Boolean flag for alarm, threshold, or hazard verification.
+
+### 5.3 Error Handling & One-Retry Policy
 ```mermaid
 sequenceDiagram
     participant App as Use Case
     participant LLM as LLM Provider
     participant Val as Pydantic Validator
     participant Store as JSON Document Store
+    participant DB as SQLite Index
     
     App->>LLM: Generate Test Cases (Prompt + Context)
-    LLM-->>App: Raw Response
-    App->>Val: Validate Schema (3-5 Complete Cases)
+    LLM-->>App: Raw Response 1
+    App->>Val: Validate JSON Syntax, Schema & Node References
     alt Validation Succeeded
-        Val-->>App: Validated TestSuiteDTO
-        App->>Store: Append Generation Record (Status: SUCCESS)
-    else Validation Failed (Malformed / Incomplete)
-        Val-->>App: ValidationError Details
-        App->>LLM: Retry Once with Schema Error Feedback
-        LLM-->>App: Second Response
-        App->>Val: Validate Schema
+        Val-->>App: Valid TestSuiteOutput
+        App->>Store: Atomic Write JSON (Status: SUCCESS)
+        App->>DB: Commit SQLite Index Record
+    else Validation Failed (Malformed JSON / Schema Violation / Bad References)
+        Val-->>App: Validation Errors Feedback
+        App->>LLM: Retry ONCE with Concise Error Feedback
+        LLM-->>App: Raw Response 2
+        App->>Val: Validate Response 2
         alt Retry Succeeded
-            Val-->>App: Validated TestSuiteDTO
-            App->>Store: Append Generation Record (Status: SUCCESS)
+            Val-->>App: Valid TestSuiteOutput
+            App->>Store: Atomic Write JSON (Status: SUCCESS)
+            App->>DB: Commit SQLite Index Record
         else Retry Failed
-            Val-->>App: ValidationError Details
-            App->>Store: Append Generation Record (Status: FAILED, Error Payload)
+            Val-->>App: Terminal Validation Errors
+            App->>Store: Atomic Write JSON (Status: FAILED, test_cases: null)
+            App->>DB: Commit SQLite Index Record (Status: FAILED)
+            App-->>Client: 422 Unprocessable Entity (No partial test cases exposed)
         end
     end
 ```
 
-### 5.4 Idempotency Policy
-- A request with an existing `idempotency_key` returns the previously generated result directly from storage without invoking the LLM.
-- A new or distinct `idempotency_key` triggers a new generation cycle and creates an append-only document.
+### 5.4 Duplicate & Idempotency Policy
+- Requests to `POST /api/v1/selections/{selection_id}/generations` **require** the `Idempotency-Key` header.
+- **Replay**: Re-submitting the same `Idempotency-Key` for the same selection immediately returns the existing generation document from storage without making any LLM call.
+- **Regeneration**: Submitting a new/different `Idempotency-Key` creates a distinct generation record, even for the identical selection.
 
 ---
 

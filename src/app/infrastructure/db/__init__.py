@@ -9,6 +9,7 @@ from src.app.infrastructure.db.session import (
 from src.app.infrastructure.db.models import (
     DocumentORM,
     DocumentVersionORM,
+    GenerationIndexORM,
     LogicalNodeORM,
     NodeVersionORM,
     SelectionItemORM,
@@ -24,6 +25,7 @@ __all__ = [
     "init_db",
     "DocumentORM",
     "DocumentVersionORM",
+    "GenerationIndexORM",
     "LogicalNodeORM",
     "NodeVersionORM",
     "SelectionItemORM",

@@ -16,6 +16,7 @@ from src.app.api.schemas.selection import (
     SelectedNodeItem,
     SelectionResponse,
 )
+from src.app.api.schemas.qa import GenerationResponse
 
 __all__ = [
     "BrowseSectionsResponse",
@@ -30,5 +31,6 @@ __all__ = [
     "CreateSelectionRequest",
     "SelectedNodeItem",
     "SelectionResponse",
+    "GenerationResponse",
 ]
 
