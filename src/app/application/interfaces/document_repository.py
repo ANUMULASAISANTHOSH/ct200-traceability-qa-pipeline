@@ -6,6 +6,7 @@ from src.app.infrastructure.db.models import (
     DocumentORM,
     DocumentVersionORM,
     GenerationIndexORM,
+    GenerationSourceNodeORM,
     LogicalNodeORM,
     NodeVersionORM,
     SelectionItemORM,
@@ -105,8 +106,12 @@ class IDocumentRepository(ABC):
         pass
 
     @abstractmethod
-    def save_generation_index(self, record: GenerationIndexORM) -> GenerationIndexORM:
-        """Atomically persist a generation index record."""
+    def save_generation_index(
+        self,
+        record: GenerationIndexORM,
+        source_nodes: Optional[List[GenerationSourceNodeORM]] = None,
+    ) -> GenerationIndexORM:
+        """Atomically persist a generation index record and its normalized source-node references."""
         pass
 
     @abstractmethod
@@ -119,5 +124,20 @@ class IDocumentRepository(ABC):
         self, selection_id: str, idempotency_key: str
     ) -> Optional[GenerationIndexORM]:
         """Retrieve a generation index record by selection ID and idempotency key."""
+        pass
+
+    @abstractmethod
+    def get_generations_by_selection_id(self, selection_id: str) -> List[GenerationIndexORM]:
+        """Retrieve all generation index records matching a selection ID."""
+        pass
+
+    @abstractmethod
+    def get_generations_by_logical_node_id(self, logical_node_id: str) -> List[GenerationIndexORM]:
+        """Retrieve all generation index records that reference a specific logical node ID."""
+        pass
+
+    @abstractmethod
+    def get_generations_by_node_version_id(self, node_version_id: str) -> List[GenerationIndexORM]:
+        """Retrieve all generation index records that reference an exact node version ID."""
         pass
 

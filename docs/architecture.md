@@ -229,23 +229,42 @@ sequenceDiagram
 
 ## 6. Retrieval-Time Staleness & Impact Analysis
 
-When test cases or generated QA artifacts are requested, the system performs a dynamic staleness check:
-1. For each `node_version_id` pinned to the generation:
-   - Identify its `logical_node_id`.
-   - Locate the corresponding node in the *latest* available `DocumentVersion`.
-2. Determine Node State:
-   - `current`: Node exists in latest version and `content_hash` matches identically.
-   - `stale`: Node exists in latest version, but `content_hash` differs.
-   - `removed`: Logical node does not exist in latest version.
-   - `unknown`: Node cannot be mapped or reference version is missing.
-3. Compute Diffs & Heuristic Impact Hints:
-   - Generate unified diff between the pinned node content and latest node content.
-   - Apply rule-based heuristic analyzers to tag the change:
-     - `NUMERICAL_SPECIFICATION_CHANGED`: Numeric values, tolerances, or units modified (e.g., 300 $\rightarrow$ 250 cycles, 40 $\rightarrow$ 30 mmHg).
-     - `SAFETY_OR_ALARM_MODIFIED`: Timing, alarm conditions, or emergency shutoffs changed (e.g., deflation valve timing 2.0s $\rightarrow$ 1.5s).
-     - `FEATURE_OR_INTERFACE_ADDED`: New codes or capabilities introduced (e.g., Error E6 added, Section 5.3 Data Export).
+When test cases or generated QA artifacts are requested via `GET /api/v1/generations/{generation_id}` or filtered queries, the system performs a dynamic, retrieval-time staleness assessment. The persisted JSON document on disk and its saved test cases are **never modified or regenerated**.
 
----
+### 6.1 Per-Source Status Rules
+For each source node snapshot pinned to the generation:
+1. `current`: The logical node exists in the latest ingested document version, and its `content_hash` matches identically.
+2. `stale`: The logical node exists in the latest document version, but its `content_hash` differs.
+3. `removed`: Lineage matching was confident, but the logical node is absent from the latest document revision.
+4. `unknown`: The latest document version is unavailable or the cross-version node alignment is flagged as unresolved/ambiguous.
+
+### 6.2 Aggregate Status Priority
+To prevent aggregate metrics from masking critical regressions or ambiguities, the overall generation status is resolved using a strict priority ladder:
+$$\text{unknown} \succ \text{removed} \succ \text{stale} \succ \text{current}$$
+- `unknown`: Assigned if **any** constituent source node is `unknown`.
+- `removed`: Assigned if no sources are `unknown`, but at least one source is `removed`.
+- `stale`: Assigned if no sources are `unknown` or `removed`, but at least one source is `stale`.
+- `current`: Assigned only when **all** constituent source nodes are `current`.
+Per-source evaluations are always returned alongside the aggregate so callers have full granular visibility.
+
+### 6.3 Deterministic Heuristic Impact Analysis
+When content changes (`stale`), a unified diff is generated using the diff service and classified using transparent, rule-based heuristics without calling an LLM:
+- **`NUMERICAL_SPECIFICATION_CHANGED`**: Numeric values, decimals, tolerances, cycle limits, or measurement units (`mmHg`, `s`, `%`, `cycles`) differ between versions.
+- **`SAFETY_OR_ALARM_MODIFIED`**: Text involving alarms, warnings, cautions, hazard limits, cutoff valves, deflation timings, or emergency shutdowns was altered.
+- **`FEATURE_OR_BEHAVIOR_CHANGED`**: New features, communication protocols (e.g. Bluetooth sync, CSV export), error codes (e.g. `E6`), or operating modes added or modified.
+- **`WORDING_ONLY_CHANGED`**: Editorial or phrasing adjustments where no numeric, safety, or functional feature changes were detected.
+> **Advisory Disclaimer**: Impact tags are automated heuristic review hints to accelerate human verification, not medical or regulatory conclusions.
+
+### 6.4 Indexed Generation Retrieval
+The backend provides flexible generation discovery endpoints:
+- `GET /api/v1/generations?selection_id=...`
+- `GET /api/v1/generations?logical_node_id=...`
+- `GET /api/v1/generations?node_version_id=...`
+- `GET /api/v1/generations/{generation_id}`
+
+**Query Filter Validation & Index Design**:
+- Collection queries require **exactly one filter** (`selection_id`, `logical_node_id`, or `node_version_id`). Supplying zero or multiple filters returns HTTP 422.
+- Supported by the relational `generation_source_nodes` index table (`generation_id`, `node_version_id`, `logical_node_id`), allowing instant indexed lookups in SQLite without scanning any JSON files on disk.
 
 ## 7. Project Skeleton & Implementation Roadmap
 

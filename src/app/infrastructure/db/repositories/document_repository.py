@@ -8,6 +8,7 @@ from src.app.infrastructure.db.models import (
     DocumentORM,
     DocumentVersionORM,
     GenerationIndexORM,
+    GenerationSourceNodeORM,
     LogicalNodeORM,
     NodeVersionORM,
     SelectionItemORM,
@@ -144,8 +145,17 @@ class SQLAlchemyDocumentRepository(IDocumentRepository):
         stmt = select(SelectionORM).where(SelectionORM.id == selection_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
-    def save_generation_index(self, record: GenerationIndexORM) -> GenerationIndexORM:
+    def save_generation_index(
+        self,
+        record: GenerationIndexORM,
+        source_nodes: Optional[List[GenerationSourceNodeORM]] = None,
+    ) -> GenerationIndexORM:
         self.session.add(record)
+        self.session.flush()
+        if source_nodes:
+            for sn in source_nodes:
+                self.session.add(sn)
+            self.session.flush()
         self.session.commit()
         self.session.refresh(record)
         return record
@@ -162,4 +172,38 @@ class SQLAlchemyDocumentRepository(IDocumentRepository):
             GenerationIndexORM.idempotency_key == idempotency_key,
         )
         return self.session.execute(stmt).scalar_one_or_none()
+
+    def get_generations_by_selection_id(self, selection_id: str) -> List[GenerationIndexORM]:
+        stmt = (
+            select(GenerationIndexORM)
+            .where(GenerationIndexORM.selection_id == selection_id)
+            .order_by(GenerationIndexORM.created_at.desc())
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_generations_by_logical_node_id(self, logical_node_id: str) -> List[GenerationIndexORM]:
+        stmt = (
+            select(GenerationIndexORM)
+            .join(
+                GenerationSourceNodeORM,
+                GenerationIndexORM.id == GenerationSourceNodeORM.generation_id,
+            )
+            .where(GenerationSourceNodeORM.logical_node_id == logical_node_id)
+            .order_by(GenerationIndexORM.created_at.desc())
+            .distinct()
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
+    def get_generations_by_node_version_id(self, node_version_id: str) -> List[GenerationIndexORM]:
+        stmt = (
+            select(GenerationIndexORM)
+            .join(
+                GenerationSourceNodeORM,
+                GenerationIndexORM.id == GenerationSourceNodeORM.generation_id,
+            )
+            .where(GenerationSourceNodeORM.node_version_id == node_version_id)
+            .order_by(GenerationIndexORM.created_at.desc())
+            .distinct()
+        )
+        return list(self.session.execute(stmt).scalars().all())
 

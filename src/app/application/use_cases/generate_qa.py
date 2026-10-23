@@ -21,6 +21,7 @@ from src.app.domain.models.qa import (
 )
 from src.app.infrastructure.db.models import (
     GenerationIndexORM,
+    GenerationSourceNodeORM,
     NodeVersionORM,
     generate_id,
 )
@@ -328,7 +329,7 @@ class GenerateQAUseCase:
         # 7. Atomically save JSON document to filesystem
         json_path = self.json_store.save_generation(doc)
 
-        # 8. Record SQLite index
+        # 8. Record SQLite index and normalized source node references
         index_record = GenerationIndexORM(
             id=generation_id,
             selection_id=selection_id,
@@ -342,7 +343,16 @@ class GenerateQAUseCase:
             provider=self.llm_client.provider_name,
             model=self.llm_client.model_name,
         )
-        self.repository.save_generation_index(index_record)
+        source_node_records = [
+            GenerationSourceNodeORM(
+                id=generate_id("gsn"),
+                generation_id=generation_id,
+                node_version_id=s.node_version_id,
+                logical_node_id=s.logical_node_id,
+            )
+            for s in source_snapshots
+        ]
+        self.repository.save_generation_index(index_record, source_node_records)
 
         # 9. Return or raise
         if generation_status == "FAILED":

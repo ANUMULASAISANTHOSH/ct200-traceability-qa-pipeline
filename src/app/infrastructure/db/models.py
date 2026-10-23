@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -314,4 +315,45 @@ class GenerationIndexORM(Base):
 
     # Relationships
     selection = relationship("SelectionORM")
+    source_nodes = relationship(
+        "GenerationSourceNodeORM",
+        back_populates="generation",
+        cascade="all, delete-orphan",
+    )
+
+
+class GenerationSourceNodeORM(Base):
+    """Normalized source-node reference index for fast retrieval by logical_node_id or node_version_id."""
+    __tablename__ = "generation_source_nodes"
+
+    id = Column(String(64), primary_key=True, default=lambda: generate_id("gsn"))
+    generation_id = Column(
+        String(64),
+        ForeignKey("generation_index.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    node_version_id = Column(
+        String(64),
+        ForeignKey("node_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    logical_node_id = Column(
+        String(64),
+        ForeignKey("logical_nodes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    __table_args__ = (
+        Index("ix_gsn_logical_node", "logical_node_id"),
+        Index("ix_gsn_node_version", "node_version_id"),
+        Index("ix_gsn_generation", "generation_id"),
+    )
+
+    # Relationships
+    generation = relationship("GenerationIndexORM", back_populates="source_nodes")
+    node_version = relationship("NodeVersionORM")
+    logical_node = relationship("LogicalNodeORM")
 
