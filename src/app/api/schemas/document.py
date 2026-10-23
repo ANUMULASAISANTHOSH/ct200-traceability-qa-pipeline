@@ -6,6 +6,26 @@ from pydantic import BaseModel, Field
 from src.app.domain.models.diff import DiffStatus, NodeDiffResult
 
 
+class IngestDocumentRequest(BaseModel):
+    """Payload to trigger ingestion of a PDF manual."""
+    file_path: str = Field(description="Relative or absolute path to the PDF file")
+    document_slug: str = Field(description="Stable document slug (e.g., 'ct200')")
+    document_title: str = Field(description="Human-readable manual title")
+    version_label: str = Field(description="Revision label (e.g., 'v1', 'v2')")
+
+
+class IngestDocumentResponse(BaseModel):
+    """Response returned upon successful ingestion of a PDF manual."""
+    document_id: str = Field(description="Persistent document entity ID")
+    document_slug: str = Field(description="Stable document slug")
+    version_id: str = Field(description="Persistent document version ID")
+    version_label: str = Field(description="Revision label")
+    sha256_hash: str = Field(description="Deterministic SHA-256 fingerprint of source PDF")
+    node_count: int = Field(description="Total extracted and persisted nodes in this version")
+    warning_count: int = Field(description="Count of structural extraction warnings recorded")
+    is_duplicate: bool = Field(description="True if identical PDF was already ingested")
+
+
 class VersionSummary(BaseModel):
     """Summary metadata of an ingested document revision."""
     id: str = Field(description="Persistent version ID")

@@ -12,11 +12,14 @@ from src.app.api.schemas.document import (
     BrowseSectionsResponse,
     DocumentDiffResponse,
     DocumentVersionsResponse,
+    IngestDocumentRequest,
+    IngestDocumentResponse,
     NodeDetailResponse,
     SearchResponse,
 )
 from src.app.application.use_cases.browse_document import BrowseDocumentUseCase
 from src.app.application.use_cases.diff_versions import DiffVersionsUseCase
+from src.app.application.use_cases.ingest_document import IngestDocumentUseCase
 from src.app.application.use_cases.search_nodes import SearchNodesUseCase
 from src.app.domain.exceptions import (
     CrossDocumentMismatchError,
@@ -31,6 +34,41 @@ from src.app.infrastructure.db.repositories.document_repository import (
 )
 
 router = APIRouter(tags=["Documents"])
+
+
+@router.post(
+    "/ingest",
+    response_model=IngestDocumentResponse,
+    status_code=201,
+    summary="Ingest a PDF manual into the versioned repository",
+)
+def ingest_document(
+    request: IngestDocumentRequest,
+    repo: SQLAlchemyDocumentRepository = Depends(get_repository),
+) -> IngestDocumentResponse:
+    """Ingest a PDF file, reconstruct structural hierarchy, content-hash, and persist immutable version."""
+    use_case = IngestDocumentUseCase(repo)
+    try:
+        result = use_case.execute(
+            pdf_path=request.file_path,
+            document_slug=request.document_slug,
+            document_title=request.document_title,
+            version_label=request.version_label,
+        )
+        return IngestDocumentResponse(
+            document_id=result.document.id,
+            document_slug=result.document.slug,
+            version_id=result.version.id,
+            version_label=result.version.version_label,
+            sha256_hash=result.version.file_hash,
+            node_count=result.node_count,
+            warning_count=result.warning_count,
+            is_duplicate=result.is_duplicate,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get(
