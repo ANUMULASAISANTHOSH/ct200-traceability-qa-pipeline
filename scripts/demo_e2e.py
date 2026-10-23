@@ -243,9 +243,9 @@ def main() -> int:
         print(f"  - Removed Nodes   : {counts.get('removed', 0)}")
         print(f"  - Unresolved      : {counts.get('unresolved', 0)}")
 
-        print("\nKey Changed / Added Specifications Detected:")
+        print("\nKey Changed / Added / Removed Specifications Detected:")
         for d in diff_data["node_diffs"]:
-            if d["status"] in ("changed", "added"):
+            if d["status"] in ("changed", "added", "removed"):
                 print(f"\n  [{d['status'].upper()}] Logical Node: {d['logical_node_id']}")
                 lines = d["diff_summary"].splitlines()[:5]
                 for line in lines:

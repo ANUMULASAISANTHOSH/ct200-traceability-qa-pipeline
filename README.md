@@ -380,6 +380,7 @@ curl -i "http://127.0.0.1:8000/api/v1/generations"
 
 ## 8. Documentation Index
 
+- [`docs/interview_walkthrough.md`](docs/interview_walkthrough.md): Comprehensive interview preparation guide, end-to-end technical flow, architectural tradeoffs, recognized limitations, and in-depth code-grounded Q&A.
 - [`docs/architecture.md`](docs/architecture.md): Full technical architecture, layer contracts, data models, and sequence diagrams.
 - [`docs/approach.md`](docs/approach.md): Detailed engineering approach covering PDF parsing heuristics, hierarchy reconstruction, edge cases, cross-version matching, and staleness rules.
 - [`docs/decision-log.md`](docs/decision-log.md): Architectural decision records (ADRs) answering the assignment's design questions and explaining tradeoffs.
