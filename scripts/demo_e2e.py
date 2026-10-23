@@ -190,8 +190,8 @@ def main() -> int:
         print(f"LLM Provider/Model : {gen_data['provider']} / {gen_data['model']}")
         print(f"Test Cases Count   : {len(gen_data['test_cases'])}")
 
-        print("\nGenerated Test Cases Sample:")
-        for tc in gen_data["test_cases"][:2]:
+        print("\nGenerated Test Cases with Specific Requirement Traceability:")
+        for tc in gen_data["test_cases"]:
             print(f"\n  * Test Case [{tc['id']}]: {tc['title']}")
             print(f"    Preconditions: {', '.join(tc['preconditions'])}")
             print(f"    Step 1: Action: {tc['steps'][0]['action']}")
@@ -205,7 +205,7 @@ def main() -> int:
         # =====================================================================
         # Step 4: Ingest CT-200 v2 and show detected diffs
         # =====================================================================
-        print_step(4, "Ingest CT-200 v2 and Detect Cross-Version Changes")
+        print_step(4, "Ingest CT-200 v2, Verify Distinct Version Identity, and Detect Changes")
         ingest_payload_v2 = {
             "file_path": str(v2_path),
             "document_slug": "ct200",
@@ -215,9 +215,22 @@ def main() -> int:
         res_v2 = client.post("/api/v1/documents/ingest", json=ingest_payload_v2)
         data_v2 = res_v2.json()
         v2_id = data_v2["version_id"]
-        print(f"Ingested Version ID    : {v2_id} ({data_v2['version_label']})")
-        print(f"Source PDF SHA-256     : {data_v2['sha256_hash']}")
-        print(f"Total Extracted Nodes  : {data_v2['node_count']}")
+        print(f"v1 Version ID          : {v1_id} ({data_v1['version_label']})")
+        print(f"v2 Version ID          : {v2_id} ({data_v2['version_label']})")
+        print(f"v2 Source PDF SHA-256  : {data_v2['sha256_hash']}")
+        print(f"v2 Extracted Nodes     : {data_v2['node_count']}")
+
+        # Verify distinct version IDs
+        assert v1_id != v2_id, f"ERROR: v1 and v2 must have distinct version IDs, got {v1_id}"
+        print(f"\n[OK] Version Identity Verified: Distinct persistent IDs assigned ({v1_id} != {v2_id})")
+
+        # Verify v1 immutability by re-fetching v1 sections after v2 ingestion
+        v1_check = client.get(f"/api/v1/documents/ct200/sections?version_id={v1_id}").json()
+        assert v1_check["version_id"] == v1_id
+        assert len(v1_check["sections"]) == len(sections)
+        for s_orig, s_curr in zip(sections, v1_check["sections"]):
+            assert s_orig["content_hash"] == s_curr["content_hash"]
+        print("[OK] v1 Immutability Verified: v1 hierarchy, section count, and hashes remain 100% unchanged after v2 ingestion.")
 
         # Full Document Comparison
         diff_res = client.get(f"/api/v1/documents/ct200/diff?v1_version_id={v1_id}&v2_version_id={v2_id}")
@@ -246,9 +259,22 @@ def main() -> int:
         get_data = get_gen_res.json()
 
         print(f"Retrieved Generation ID : {generation_id}")
+        print(f"Original Pinned Version : {data_v1['version_label']} ({v1_id})")
         print(f"Active Latest Version   : {get_data['latest_version_label']} ({get_data['latest_document_version_id']})")
         print(f"Aggregate Status        : {get_data['aggregate_status'].upper()} (Priority ladder: unknown > removed > stale > current)")
         print(f"Disclaimer              : {get_data['traceability']['disclaimer']}")
+
+        # Build mapping of source reports for test case traceability demonstration
+        src_map = {s["pinned_node_version_id"]: s for s in get_data["source_traceability"]}
+
+        print("\nTest Case Traceability to Requirement Staleness Status:")
+        for tc in gen_data["test_cases"]:
+            ref_id = tc["node_references"][0] if tc["node_references"] else None
+            src_info = src_map.get(ref_id)
+            status_str = src_info["status"].upper() if src_info else "UNKNOWN"
+            tags_str = f" | Tags: {src_info['impact_tags']}" if src_info and src_info["impact_tags"] else ""
+            print(f"  * [{tc['id']}] '{tc['title']}'")
+            print(f"    Cites Node : {ref_id} -> Status: {status_str}{tags_str}")
 
         print("\nPer-Source Traceability & Impact Analysis:")
         for src in get_data["source_traceability"]:

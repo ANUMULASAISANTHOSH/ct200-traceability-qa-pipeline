@@ -31,12 +31,8 @@ ENV/
 .coverage
 htmlcov/
 
-# Local databases & runtime outputs (do NOT ignore existing PDF files)
-data/*.db
-data/generations/*
-!data/ct200_manual.pdf
-!data/ct200_manual_v2.pdf
-!data/IMPORTANT_ASSIGNMENT_UPDATE (Read to check MD).txt
+# Local databases, generations, and untracked manual PDFs/assignment data
+data/
 
 # Environment variables
 .env

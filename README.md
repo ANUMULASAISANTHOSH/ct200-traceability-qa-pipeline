@@ -70,7 +70,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
+### 3. Source Manual Placement
+Ensure the two source PDF manuals are placed in the `data/` directory (these are kept as local test data outside Git tracking):
+- `data/ct200_manual.pdf`
+- `data/ct200_manual_v2.pdf`
+
+### 4. Environment Configuration
 Copy the example environment configuration:
 ```bash
 cp .env.example .env
