@@ -35,6 +35,12 @@ class IDocumentRepository(ABC):
         pass
 
     @abstractmethod
+    def get_node_version_by_id(self, node_version_id: str) -> Optional[NodeVersionORM]:
+        """Fetch a specific node version snapshot by its persistent ID."""
+        pass
+
+
+    @abstractmethod
     def get_version_by_label(self, document_id: str, label: str) -> Optional[DocumentVersionORM]:
         """Fetch a version by document ID and version label (e.g., 'v1')."""
         pass

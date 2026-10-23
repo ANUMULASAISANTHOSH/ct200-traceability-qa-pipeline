@@ -43,6 +43,11 @@ class SQLAlchemyDocumentRepository(IDocumentRepository):
         stmt = select(DocumentVersionORM).where(DocumentVersionORM.id == version_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def get_node_version_by_id(self, node_version_id: str) -> Optional[NodeVersionORM]:
+        stmt = select(NodeVersionORM).where(NodeVersionORM.id == node_version_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+
+
     def get_version_by_label(self, document_id: str, label: str) -> Optional[DocumentVersionORM]:
         stmt = select(DocumentVersionORM).where(
             DocumentVersionORM.document_id == document_id,

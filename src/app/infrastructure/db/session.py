@@ -21,9 +21,14 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 def get_engine(database_url: str) -> Engine:
     """Create a configured SQLAlchemy engine."""
     connect_args = {}
+    engine_kwargs = {}
     if database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
-    return create_engine(database_url, connect_args=connect_args)
+        if ":memory:" in database_url:
+            from sqlalchemy.pool import StaticPool
+            engine_kwargs["poolclass"] = StaticPool
+    return create_engine(database_url, connect_args=connect_args, **engine_kwargs)
+
 
 
 def get_session_factory(engine: Engine) -> sessionmaker[Session]:
