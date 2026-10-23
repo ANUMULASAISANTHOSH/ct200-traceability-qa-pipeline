@@ -112,6 +112,7 @@ class DocumentParser:
                 heading_info = self._identify_heading(line_text, line_tokens)
                 if heading_info is not None:
                     sec_num, sec_title, declared_depth = heading_info
+                    node_id = f"sec_{sec_num.replace('.', '_')}"
 
                     parent_node = self._resolve_parent(
                         sec_num,
@@ -120,6 +121,7 @@ class DocumentParser:
                         root,
                         pnum,
                         warnings,
+                        node_id=node_id,
                     )
 
                     # Check for out-of-order section numbering among sibling sections
@@ -128,14 +130,8 @@ class DocumentParser:
                         sec_num,
                         pnum,
                         warnings,
+                        node_id=node_id,
                     )
-
-                    parent_prefix = (
-                        parent_node.section_number.replace(".", "_")
-                        if parent_node.section_number
-                        else "root"
-                    )
-                    node_id = f"sec_{parent_prefix}_{sec_num.replace('.', '_')}"
 
                     sec_node = DocumentNode(
                         id=node_id,
@@ -307,6 +303,7 @@ class DocumentParser:
         root: DocumentNode,
         page_num: int,
         warnings: List[ExtractionWarning],
+        node_id: Optional[str] = None,
     ) -> DocumentNode:
         """Resolve the parent node respecting skipped-level preservation rules."""
         if declared_depth == 1:
@@ -330,6 +327,7 @@ class DocumentParser:
                 break
 
         if nearest_parent is not None:
+            actual_node_id = node_id or f"sec_{sec_num.replace('.', '_')}"
             warnings.append(
                 ExtractionWarning(
                     code="MISSING_PARENT_SECTION",
@@ -338,7 +336,7 @@ class DocumentParser:
                         f"skips parent '{missing_intermediate}'; attached to nearest parent '{nearest_parent.section_number}'"
                     ),
                     page_number=page_num,
-                    node_id=f"sec_{sec_num.replace('.', '_')}",
+                    node_id=actual_node_id,
                 )
             )
             return nearest_parent
@@ -351,8 +349,10 @@ class DocumentParser:
         sec_num: str,
         page_num: int,
         warnings: List[ExtractionWarning],
+        node_id: Optional[str] = None,
     ) -> None:
         """Check if sibling sections appear out of numerical order in source flow."""
+        actual_node_id = node_id or f"sec_{sec_num.replace('.', '_')}"
         for sibling in parent_node.children:
             if sibling.node_type == NodeType.SECTION and sibling.section_number:
                 try:
@@ -366,7 +366,7 @@ class DocumentParser:
                                     f"Section {sec_num} appears after section {sibling.section_number} in document order"
                                 ),
                                 page_number=page_num,
-                                node_id=f"sec_{sec_num.replace('.', '_')}",
+                                node_id=actual_node_id,
                             )
                         )
                         break

@@ -60,7 +60,7 @@ def test_case_1_skipped_level_heading_2_1_1_1(v1_doc: DocumentDraft, v2_doc: Doc
         assert parent.section_number == "2.1"
         assert "General Specifications" in parent.title
 
-        # 3. Emits explicit missing-parent warning
+        # 3. Emits explicit missing-parent warning matching actual node ID
         missing_warnings = [
             w for w in doc.warnings
             if w.code == "MISSING_PARENT_SECTION" and "2.1.1.1" in w.message
@@ -68,6 +68,12 @@ def test_case_1_skipped_level_heading_2_1_1_1(v1_doc: DocumentDraft, v2_doc: Doc
         assert len(missing_warnings) == 1
         assert "2.1.1" in missing_warnings[0].message
         assert "2.1" in missing_warnings[0].message
+        assert missing_warnings[0].node_id == node.id
+
+        # Verify referenced node exists in document AST
+        ref_node = doc.find_node_by_id(missing_warnings[0].node_id)
+        assert ref_node is not None
+        assert ref_node == node
 
         # 4. Verifies no implicit/invented 2.1.1 node exists
         assert doc.find_nodes_by_section("2.1.1") == []
@@ -93,12 +99,16 @@ def test_case_2_section_3_4_before_3_3_source_order(v1_doc: DocumentDraft, v2_do
         idx_3_3 = section_children.index("3.3")
         assert idx_3_4 < idx_3_3
 
-        # 4. Emits out-of-order section warning
+        # 4. Emits out-of-order section warning matching actual node ID
         order_warnings = [
             w for w in doc.warnings
             if w.code == "OUT_OF_ORDER_SECTION" and "3.3" in w.message and "3.4" in w.message
         ]
         assert len(order_warnings) == 1
+        assert order_warnings[0].node_id == node_3_3.id
+        ref_3_3 = doc.find_node_by_id(order_warnings[0].node_id)
+        assert ref_3_3 is not None
+        assert ref_3_3 == node_3_3
 
 
 def test_case_3_distinct_error_codes_headings(v1_doc: DocumentDraft, v2_doc: DocumentDraft):
@@ -177,10 +187,15 @@ def test_case_4_complete_tables_and_wrapped_cell_merging(v1_doc: DocumentDraft, 
     assert v2_rows["E6"][0] == "Bluetooth sync failure"
     assert "Displays E6 on next sync attempt; does not affect measurement" in v2_rows["E6"][1]
 
-    # False fragment warnings emitted
+    # False fragment warnings emitted and reference existing table node
     for doc in [v1_doc, v2_doc]:
         frag_warnings = [w for w in doc.warnings if w.code == "FALSE_TABLE_FRAGMENT_MERGED"]
         assert len(frag_warnings) >= 1
+        for fw in frag_warnings:
+            assert fw.node_id is not None
+            ref_tbl = doc.find_node_by_id(fw.node_id)
+            assert ref_tbl is not None
+            assert ref_tbl.node_type == NodeType.TABLE
 
 
 def test_case_5_page_spanning_content(v1_doc: DocumentDraft, v2_doc: DocumentDraft):
@@ -230,3 +245,16 @@ def test_v2_new_section_5_3_data_export(v1_doc: DocumentDraft, v2_doc: DocumentD
     para = [c for c in node.children if c.node_type == NodeType.PARAGRAPH][0]
     assert "Starting with firmware 1.4" in para.content
     assert "exporting stored readings as a CSV file" in para.content
+
+
+def test_all_warnings_reference_existing_nodes(v1_doc: DocumentDraft, v2_doc: DocumentDraft):
+    """Ensure every warning that references a node uses that node's actual ID and the referenced node exists."""
+    for doc in [v1_doc, v2_doc]:
+        assert len(doc.warnings) > 0
+        for w in doc.warnings:
+            if w.node_id is not None:
+                referenced = doc.find_node_by_id(w.node_id)
+                assert referenced is not None, (
+                    f"Warning {w.code} on page {w.page_number} references non-existent node ID: {w.node_id}"
+                )
+                assert referenced.id == w.node_id
