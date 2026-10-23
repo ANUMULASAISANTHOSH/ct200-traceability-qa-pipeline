@@ -56,7 +56,7 @@ python scripts/demo_e2e.py
 ```
 
 ### Repository & Documentation Links
-- **Repository URL**: `[Insert GitHub Repository URL]`
+- **Repository URL**: https://github.com/ANUMULASAISANTHOSH/ct200-traceability-qa-pipeline
 - **Video Walkthrough (Optional)**: `[Insert Loom / Drive Link if recorded, or leave blank]`
 - **Key Documentation**:
   - `README.md`: Setup, configuration, server commands, and API reference examples.

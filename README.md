@@ -53,8 +53,8 @@ graph TD
 ### 1. Clone & Set Up Virtual Environment
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd data-20261023T053719Z-1-001
+git clone https://github.com/ANUMULASAISANTHOSH/ct200-traceability-qa-pipeline.git
+cd ct200-traceability-qa-pipeline
 
 # Create and activate virtual environment
 python -m venv venv
