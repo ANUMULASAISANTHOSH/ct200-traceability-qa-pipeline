@@ -24,3 +24,9 @@ class CrossDocumentMismatchError(Exception):
 class InvalidQueryError(Exception):
     """Raised when query parameters or combination of arguments is invalid."""
     pass
+
+
+class SelectionNotFoundError(Exception):
+    """Raised when a requested selection ID is not found."""
+    pass
+

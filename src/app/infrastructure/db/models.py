@@ -227,3 +227,57 @@ class VersionMatchORM(Base):
         "LogicalNodeORM",
         foreign_keys=[logical_node_id],
     )
+
+
+class SelectionORM(Base):
+    """Named collection of version-pinned node references for deterministic QA synthesis."""
+    __tablename__ = "selections"
+
+    id = Column(String(64), primary_key=True, default=lambda: generate_id("sel"))
+    document_version_id = Column(
+        String(64),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(256), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationships
+    document_version = relationship("DocumentVersionORM")
+    items = relationship(
+        "SelectionItemORM",
+        back_populates="selection",
+        cascade="all, delete-orphan",
+        order_by="SelectionItemORM.position",
+    )
+
+
+class SelectionItemORM(Base):
+    """Ordered node reference within a version-pinned selection."""
+    __tablename__ = "selection_items"
+
+    id = Column(String(64), primary_key=True, default=lambda: generate_id("item"))
+    selection_id = Column(
+        String(64),
+        ForeignKey("selections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    node_version_id = Column(
+        String(64),
+        ForeignKey("node_versions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, index=True)
+    content_hash = Column(String(64), nullable=False)
+
+    # Relationships
+    selection = relationship("SelectionORM", back_populates="items")
+    node_version = relationship("NodeVersionORM")
+

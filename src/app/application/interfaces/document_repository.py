@@ -7,8 +7,11 @@ from src.app.infrastructure.db.models import (
     DocumentVersionORM,
     LogicalNodeORM,
     NodeVersionORM,
+    SelectionItemORM,
+    SelectionORM,
     VersionMatchORM,
 )
+
 
 
 class IDocumentRepository(ABC):
@@ -87,3 +90,16 @@ class IDocumentRepository(ABC):
     def get_version_matches(self, version_id: str) -> List[VersionMatchORM]:
         """Fetch all match records for a target version."""
         pass
+
+    @abstractmethod
+    def create_selection(
+        self, selection: SelectionORM, items: List[SelectionItemORM]
+    ) -> SelectionORM:
+        """Atomically persist a version-pinned selection and its ordered items."""
+        pass
+
+    @abstractmethod
+    def get_selection_by_id(self, selection_id: str) -> Optional[SelectionORM]:
+        """Retrieve a selection by persistent ID."""
+        pass
+

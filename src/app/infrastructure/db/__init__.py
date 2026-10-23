@@ -11,6 +11,8 @@ from src.app.infrastructure.db.models import (
     DocumentVersionORM,
     LogicalNodeORM,
     NodeVersionORM,
+    SelectionItemORM,
+    SelectionORM,
     VersionMatchORM,
     generate_id,
 )
@@ -24,6 +26,9 @@ __all__ = [
     "DocumentVersionORM",
     "LogicalNodeORM",
     "NodeVersionORM",
+    "SelectionItemORM",
+    "SelectionORM",
     "VersionMatchORM",
     "generate_id",
 ]
+

@@ -11,6 +11,11 @@ from src.app.api.schemas.document import (
     SectionSummary,
     VersionSummary,
 )
+from src.app.api.schemas.selection import (
+    CreateSelectionRequest,
+    SelectedNodeItem,
+    SelectionResponse,
+)
 
 __all__ = [
     "BrowseSectionsResponse",
@@ -22,4 +27,8 @@ __all__ = [
     "SearchResultItem",
     "SectionSummary",
     "VersionSummary",
+    "CreateSelectionRequest",
+    "SelectedNodeItem",
+    "SelectionResponse",
 ]
+

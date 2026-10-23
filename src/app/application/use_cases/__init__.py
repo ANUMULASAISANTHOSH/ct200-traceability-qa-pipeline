@@ -15,6 +15,10 @@ from src.app.application.use_cases.browse_document import (
 from src.app.application.use_cases.search_nodes import (
     SearchNodesUseCase,
 )
+from src.app.application.use_cases.manage_selections import (
+    CreateSelectionUseCase,
+    GetSelectionUseCase,
+)
 
 __all__ = [
     "IngestDocumentUseCase",
@@ -22,7 +26,10 @@ __all__ = [
     "DiffVersionsUseCase",
     "BrowseDocumentUseCase",
     "SearchNodesUseCase",
+    "CreateSelectionUseCase",
+    "GetSelectionUseCase",
     "format_node_text_for_diff",
     "generate_text_diff",
 ]
+
 

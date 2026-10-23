@@ -9,9 +9,12 @@ from src.app.infrastructure.db.models import (
     DocumentVersionORM,
     LogicalNodeORM,
     NodeVersionORM,
+    SelectionItemORM,
+    SelectionORM,
     VersionMatchORM,
     generate_id,
 )
+
 
 
 class SQLAlchemyDocumentRepository(IDocumentRepository):
@@ -123,3 +126,20 @@ class SQLAlchemyDocumentRepository(IDocumentRepository):
             VersionMatchORM.target_document_version_id == version_id
         )
         return list(self.session.execute(stmt).scalars().all())
+
+    def create_selection(
+        self, selection: SelectionORM, items: List[SelectionItemORM]
+    ) -> SelectionORM:
+        self.session.add(selection)
+        self.session.flush()
+        for item in items:
+            self.session.add(item)
+        self.session.flush()
+        self.session.commit()
+        self.session.refresh(selection)
+        return selection
+
+    def get_selection_by_id(self, selection_id: str) -> Optional[SelectionORM]:
+        stmt = select(SelectionORM).where(SelectionORM.id == selection_id)
+        return self.session.execute(stmt).scalar_one_or_none()
+

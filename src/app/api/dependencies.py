@@ -7,7 +7,12 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from src.app.application.use_cases.browse_document import BrowseDocumentUseCase
 from src.app.application.use_cases.diff_versions import DiffVersionsUseCase
+from src.app.application.use_cases.manage_selections import (
+    CreateSelectionUseCase,
+    GetSelectionUseCase,
+)
 from src.app.application.use_cases.search_nodes import SearchNodesUseCase
+
 from src.app.config import Settings, get_settings
 from src.app.infrastructure.db.repositories.document_repository import (
     SQLAlchemyDocumentRepository,
@@ -59,3 +64,18 @@ def get_diff_use_case(
 ) -> DiffVersionsUseCase:
     """Provide the cross-version diff use case."""
     return DiffVersionsUseCase(repo)
+
+
+def get_create_selection_use_case(
+    repo: SQLAlchemyDocumentRepository = Depends(get_repository),
+) -> CreateSelectionUseCase:
+    """Provide the create selection use case."""
+    return CreateSelectionUseCase(repo)
+
+
+def get_get_selection_use_case(
+    repo: SQLAlchemyDocumentRepository = Depends(get_repository),
+) -> GetSelectionUseCase:
+    """Provide the get selection use case."""
+    return GetSelectionUseCase(repo)
+
