@@ -1,5 +1,3 @@
-"""Domain models export."""
-
 from src.app.domain.models.document import (
     DocumentDraft,
     DocumentNode,
@@ -7,6 +5,15 @@ from src.app.domain.models.document import (
     NodeType,
     PageLocation,
     TableData,
+)
+from src.app.domain.models.hashing import (
+    compute_file_sha256,
+    compute_node_content_hash,
+)
+from src.app.domain.models.diff import (
+    DiffStatus,
+    NodeDiffResult,
+    DocumentDiffReport,
 )
 
 __all__ = [
@@ -16,4 +23,10 @@ __all__ = [
     "NodeType",
     "PageLocation",
     "TableData",
+    "compute_file_sha256",
+    "compute_node_content_hash",
+    "DiffStatus",
+    "NodeDiffResult",
+    "DocumentDiffReport",
 ]
+
