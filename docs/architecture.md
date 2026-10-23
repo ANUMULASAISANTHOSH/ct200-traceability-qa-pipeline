@@ -102,7 +102,7 @@ The parser must handle the following verified characteristics from `ct200_manual
 
 1. **Non-Sequential Numbering Depth (Skipped Levels)**:
    - *Observation*: Section `2.1 General Specifications` is directly followed by `2.1.1.1 Battery Life Under Typical Use` on Page 2, skipping level `2.1.1`.
-   - *Requirement*: Heading hierarchy parser must not fail or crash on skipped numbering levels; it must nest `2.1.1.1` as a direct child of `2.1` or insert an implicit container node.
+   - *Requirement*: Heading hierarchy parser must preserve the declared depth (depth 4: `2.1.1.1`), attach it directly to the nearest existing numbered parent (`2.1`), and record an explicit extraction warning stating that parent `2.1.1` is missing. Do not invent an implicit section node.
 2. **Out-of-Order Section Numbering in Document Flow**:
    - *Observation*: On Page 3, `3.2 Cuff Inflation Sequence` is immediately followed by `3.4 Auto Shutoff`, which is then followed by `3.3 Result Display and Classification`.
    - *Requirement*: Preserve physical source document order while recording both `source_order_index` and `logical_section_number`. Do not automatically re-sort sections based on their numeric labels.
